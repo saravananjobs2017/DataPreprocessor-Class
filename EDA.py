@@ -1,9 +1,13 @@
+import numpy as np
 import pandas as pd
-import numpy as numpy
+
+
 class DataPreprocessor:
-    def __init__(self):
-        pass
-    def impute_missing_values(self, data,target=None, strategy='median', impute_val=None,missing_vals=None,mv_flag=None):
+    def __init__(self,logger_object):
+        self.logger_object = logger_object
+
+    def impute_missing_values(self, data, mv_flag=None, target=None, strategy='median', impute_val=None,
+                              missing_vals=None):
         """
                 Method Name: impute_missing_values
                 Description: This method will be used to impute missing values in the dataframe
@@ -35,43 +39,92 @@ class DataPreprocessor:
                 """
         if isinstance(data, pd.DataFrame) and not data.empty:
             dataframe = data
-            # Converting missing_vals to Nan Values
+
             if mv_flag is True:
-                dataframe.replace(missing_vals,np.nan,inplace=True)
-            #  Checking for Missing Value in Dependent Variable
-            if dataframe[target].isna().any():
-                target_column = dataframe[target]
-                dataframe.drop(target,axis=1,inplace=True)
-                #dataframe[target].dropna(inplace=True)  # If any missing Value found Dropping those
-            # Checking for Missing Values in Independent Variable
-            Missing_data_columns = dataframe.columns[dataframe.isna().any()].tolist()  # Finding Columns with the missing data from dataframe
-            if strategy == 'fixed': # checking if strategy == fixed
-                dataframe.fillna(impute_val, inplace=True) # Filling the Nan values with the imputed value from user
+                # Converting missing_vals to Nan Values
+                if missing_vals:
+                    dataframe.replace(missing_vals, np.nan, inplace=True)
+                #  Checking for Missing Values in Dependent Variable
+                if dataframe[target].isna().any():
+                    dataframe = dataframe[dataframe[
+                        target].notna()].copy()  # Selecting the Dataframe With No missing values in Dependent column
+                # Checking for Missing Values in Independent Variables
+                Missing_data_columns = dataframe.columns[
+                    dataframe.isna().any()].tolist()  # Finding Columns with the missing data from dataframe
+                if strategy == 'fixed':  # checking if strategy == fixed
+                    dataframe.fillna(impute_val,
+                                     inplace=True)  # Filling the Nan values with the imputed value from user
+                else:
+                    for columns in Missing_data_columns:  # Iterating over the columns having Nan Values
+                        if dataframe[columns].dtype == 'object':  # Checking for the categorical data
+                            Mode = dataframe[columns].mode()[0]
+                            dataframe[columns].fillna(Mode, inplace=True)  # Imputing Nan values with mode of the column
+                        else:
+                            if strategy == 'median':  # checking if the strategy == median
+                                Median = dataframe[columns].median()
+                                dataframe[columns].fillna(Median,
+                                                          inplace=True)  # Imputing Nan values with median of the column
+                            else:  # The only strategy remains is mean
+                                Mean = dataframe[columns].mean()
+                                dataframe[columns].fillna(Mean,
+                                                          inplace=True)  # Imputing Nan values with mean of the column
+
             else:
-                for columns in Missing_data_columns:  # Iterating over the columns having Nan Values
-                    if dataframe[columns].dtype == 'object': # Checking for the categorical data
-                        Mode = dataframe[columns].mode()[0]
-                        dataframe[columns].fillna(Mode, inplace=True)  # Imputing Nan values with mode of the column
-                    else:
-                        if strategy == 'median': # checking if the strategy == median
-                            Median = dataframe[columns].median()
-                            dataframe[columns].fillna(Median, inplace=True)  # Imputing Nan values with median of the column                        else:  # The only strategy remains is mean
-                            Mean = dataframe[columns].mean()
-                            dataframe[columns].fillna(Mean, inplace=True)   # Imputing Nan values with mean of the column
-            dataframe[target] = target_column
-            dataframe[target].dropna(inplace=True)
-        else:
-            pass
+                pass
+
         return dataframe
+
+    def type_conversion(self,dataset, cat_to_num=None,num_to_cat=None):
+        '''
+
+            Method Name: type_conversion
+            Description: This method will be used to convert column datatype from
+            numerical to categorical or vice-versa, if possible.
+
+            Input Description:
+
+            dataset: input DataFrame in which type conversion is needed
+
+            cat_to_num: None(default),list/tuple of variables that need to
+            be converted from categorical to numerical
+
+            num_to_cat: None(default),list/tuple of variables to be
+            converted from numerical to categorical
+
+            return: A DataFrame with column types changed as per requirement
+
+            Written By: Purvansh singh
+            Version: 1.0
+            Revisions: None
+        '''
+        self.logger_object.log("Entered into type_conversion method.")
+        if isinstance(dataset, pd.DataFrame) and not dataset.empty:
+            if cat_to_num is not None:
+                for column in cat_to_num:
+                    try:
+                        dataset[column] = pd.to_numeric(dataset[column])
+                    except Exception as e:
+                        print(e)
+
+            if num_to_cat is not None:
+                for column in num_to_cat:
+                    try:
+                        dataset[column] = dataset[column].astype('object')
+                    except Exception as e:
+                        print(e)
+
+            return dataset
+
+
+
 
 if __name__ == '__main__':
     df = pd.read_csv('train.csv')
-    final = DataPreprocessor().impute_missing_values(df, 'fixed', 20)
+    print(df.shape)
+    print(df.isna().sum())
+    final = DataPreprocessor().impute_missing_values(df, True, 'is_promoted', 'fixed', 5000,
+                                                     {'recruitment_channel': 'other'})
 
-
-
-
-
-
-
-
+    print(final.head())
+    print(final.isna().sum())
+    print(final.shape)
