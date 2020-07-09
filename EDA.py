@@ -2,8 +2,20 @@ import numpy as np
 import pandas as pd
 import logger
 from sklearn.decomposition import PCA
+from imblearn.over_sampling import RandomOverSampler, SMOTE
+from imblearn.under_sampling import RandomUnderSampler
+from sklearn.feature_selection import VarianceThreshold
 
 class DataPreprocessor:
+    """
+        This class shall be used to include all Data Preprocessing techniques to be feed to the Machine Learning Models
+
+        Written By: iNeuron Intelligence
+        Version: 1.0
+        Revisions: None
+
+    """
+
     def __init__(self, file_object, logger_object):
         self.file_object = file_object
         self.logger_object = logger_object
@@ -178,6 +190,127 @@ class DataPreprocessor:
             self.logger_object.log(self.file_object,
                                    'Exception occurred in performing PCA. Exception message:  ' + str(e))
             raise Exception()
+
+    def remove_imbalance(self, data, target, threshold, oversample=True):
+        """
+        Method Name: remove_imbalance
+        Description: This method will be used to handle unbalanced datasets(rare classes) through oversampling/ undersampling
+                     techniques
+        Input Description: data: the input dataframe with target column.
+                           threshold: the threshold of mismatch between the target values to perform balancing.
+
+        Output: A balanced dataframe.
+        On Failure: Raise Exception
+
+        Written By: iNeuron Intelligence
+        Version: 1.0
+        Revisions: None
+
+        """
+        self.logger_object.log(self.file_object,
+                               'Entered the remove_imbalance method of the DataPreprocessor class')  # Logging entry to the method
+        try:
+            # data= pd.read_csv(self.training_file) # reading the data file
+            self.logger_object.log(self.file_object,
+                                   'DataFrame Load Successful of the remove_imbalance method of the DataPreprocessor class')
+            # return self.data # return the read data to the calling method
+
+            self.logger_object.log(self.file_object,
+                                   'X y created in the remove_imbalance method of the DataPreprocessor class')
+            X = data.drop(target, axis=1)
+            y = data[target]
+
+            self.logger_object.log(self.file_object,
+                                   'Class Imbalance Process Starts in the remove_imbalance method of the DataPreprocessor class')
+
+            no_of_classes = data[target].nunique()
+
+            if no_of_classes == 2:
+
+                self.logger_object.log(self.file_object,
+                                       'No of Classes is 2 in the remove_imbalance method of the DataPreprocessor class')
+                thresh_satisfied = ((data[target].value_counts() / float(len(data[target])) * 100).any() < threshold)
+                if thresh_satisfied:
+                    self.logger_object.log(self.file_object,
+                                           'Threshold satisfied in the remove_imbalance method of the DataPreprocessor class')
+                    if oversample:
+                        self.logger_object.log(self.file_object,
+                                               'OverSampling minority classes data having 2 classes in the remove_imbalance method of the DataPreprocessor class')
+                        ROS = RandomOverSampler(sampling_strategy='auto', random_state=42)
+                        X, y = ROS.fit_sample(X, y)
+                    else:
+                        self.logger_object.log(self.file_object,
+                                               'UnderSampling majority classes data having 2 classes in the remove_imbalance method of the DataPreprocessor class')
+                        ROS = RandomUnderSampler(sampling_strategy='auto', random_state=42)
+                        X, y = ROS.fit_sample(X, y)
+            elif no_of_classes > 2:
+
+                high = (data[target].value_counts() / float(len(data[target])) * 100).ravel().max()
+                low = (data[target].value_counts() / float(len(data[target])) * 100).ravel().min()
+
+                thresh_satisfied = (high - low < threshold)
+
+                if thresh_satisfied:
+                    self.logger_object.log(self.file_object,
+                                           'Threshold satisfied in the remove_imbalance method of the DataPreprocessor class')
+                    if oversample:
+                        self.logger_object.log(self.file_object,
+                                               'OverSampling minority classes data having more than 2 classes in the remove_imbalance method of the DataPreprocessor class')
+                        for i in range(no_of_classes - 2):
+                            ROS = RandomOverSampler(sampling_strategy='auto', random_state=42)
+                            X, y = ROS.fit_sample(X, y)
+                    else:
+                        self.logger_object.log(self.file_object,
+                                               'UnderSampling majority classes data having more than 2 classes in the remove_imbalance method of the DataPreprocessor class')
+                        for i in range(no_of_classes - 2):
+                            ROS = RandomUnderSampler(sampling_strategy='auto', random_state=42)
+                            X, y = ROS.fit_sample(X, y)
+            else:
+                pass
+
+            y.to_frame(name=target)
+            dfBalanced = pd.concat([X, y], axis=1)
+            self.logger_object.log(self.file_object,
+                                   'Class Imbalance Process Ends in the remove_imbalance method of the DataPreprocessor class')
+            return dfBalanced
+
+        except Exception as e:
+            self.logger_object.log(self.file_object,
+                                   'Exception occured in remove_imbalance method of the DataPreprocessor class. Exception message: ' + str(
+                                       e))  # Logging the exception message
+            self.logger_object.log(self.file_object,
+                                   'DataFrame Load Unsuccessful.Exited the remove_imbalance method of the DataPreprocessor class')  # Logging unsuccessful load of data
+            raise Exception()  # raising exception and exiting
+
+    def remove_columns_with_minimal_variance(self, data, threshold):
+        """
+        Method Name: remove_columns_with_minimal_variance
+        Description: This method drops any numerical column with standard deviation below specified threshold
+        Input Parameter Description: data: input DataFrame in which we need to check std deviations
+                                     threshold : the threshold for std deviation below which we need to drop the columns
+
+
+        Output: A DataFrame with numerical columns with low std dev dropped.
+        On Failure: Raise Exception
+
+        Written By: iNeuron Intelligence
+        Version: 1.0
+        Revisions: None
+
+        """
+        self.logger_object.log(self.file_object,
+                               'Entered the remove_columns_with_minimal_variance method of the DataPreprocessor class')  # Logging entry to the method
+        try:
+            # self.logger_object.log(self.file_object,'Data Load Successful.') # Logging exit from the method
+            sel = VarianceThreshold(threshold=(threshold * (1 - threshold)))
+            sel_var = sel.fit_transform(data)
+            new_data = data[data.columns[sel.get_support(indices=True)]]
+            return new_data  # return the read data to the calling method
+        except Exception as e:
+            self.logger_object.log(self.file_object,
+                                   'Exception occured in remove_columns_with_minimal_variance method of the DataPreprocessor class. Exception message: ' + str(
+                                       e))  # Logging the exception message
+            raise Exception()  # raising exception and exiting
 
 if __name__ == '__main__':
     log = logger.App_Logger()
