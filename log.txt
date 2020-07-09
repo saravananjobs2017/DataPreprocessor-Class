@@ -1,0 +1,7 @@
+2020-07-09/09:08:37		Entered into impute_missing_values method.
+2020-07-09/09:08:37		Non-empty DataFrame object Identified
+2020-07-09/09:08:37		my_flag found True Imputing Dataframe.
+2020-07-09/09:08:37		Imputed DataFrame Returned Successfully
+2020-07-09/09:08:37		Entered into type_conversion method.
+2020-07-09/09:08:37		Non-empty DataFrame object Identified
+2020-07-09/09:08:37		Error Occurred in type_conversion method, Error statement: Unable to parse string "Master's & above" at position 0
