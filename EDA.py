@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import logger
-
+from sklearn.decomposition import PCA
 
 class DataPreprocessor:
     def __init__(self, file_object, logger_object):
@@ -16,6 +16,8 @@ class DataPreprocessor:
 
                 Input Description:
                 data: Name of the input dataframe
+
+                target: Name of the target column of DataFrame
 
                 strategy: Strategy to be used for MVI (Missing Value Imputation)
                 --‘median’ : default for continuous variables,
@@ -86,6 +88,7 @@ class DataPreprocessor:
         except Exception as e:
             self.logger_object.log(self.file_object,
                                    "Error Occurred in impute_missing_values, Error statement: " + str(e))
+            raise Exception(e) from None  # Suppressing the Error Chaining
         else:
             self.logger_object.log(self.file_object, "Imputed DataFrame Returned Successfully")
             return dataframe
@@ -115,7 +118,7 @@ class DataPreprocessor:
             Version: 1.0
             Revisions: None
         '''
-        self.logger_object.log("Entered into type_conversion method.")
+        self.logger_object.log(self.file_object, "Entered into type_conversion method.")
         try:
             if isinstance(dataset, pd.DataFrame) and not dataset.empty:
                 self.logger_object.log(self.file_object, "Non-empty DataFrame object Identified")
@@ -125,27 +128,62 @@ class DataPreprocessor:
 
                 if num_to_cat is not None:
                     for column in num_to_cat:
-                        try:
-                            dataset[column] = dataset[column].astype('object')
+                        dataset[column] = dataset[column].astype('object')
         except Exception as e:
             self.logger_object.log(self.file_object,
                                    "Error Occurred in type_conversion method, Error statement: " + str(e))
-            #raise Exception(str(e))
-
+            raise Exception(e) from None  # Suppressing the Error Chaining
         else:
             self.logger_object.log(self.file_object, "type_converted DataFrame Returned Successfully")
             return dataset
 
+    def pca(self, data, var_explained):
+        """
+        Method Name: pca
+        Description: This method reduces the dimension from scaled Data which enables
+                     quick for large data files.
+
+        input      : Data which is Scaled since PCA works on continous data
+                     var_explained is no_components in PCA , default value passed.
+
+        Output     : It returns the scaled and reduced dimensions.
+
+        On Failure : Raise Exception
+
+        Written by : Saravanan Dhanapal
+
+        version    : 1.0
+
+        revisions  : Yet be finialized.
+
+
+        """
+
+        self.data = data
+        self.var_explained = var_explained
+        try:
+            ## fit the model on the whole dataset
+            # Transform the data
+            # PCA fit generate dafult components as 0.9
+            # Here,scaled_data which pass after perfromed StandardScaler
+            pca1 = PCA(n_components=var_explained)
+            X_pca = pca1.fit(data)
+
+            # Transform the data
+            X_pca1 = X_pca.transform(data)
+
+            return X_pca1
+
+        except Exception as e:
+            self.logger_object.log(self.file_object,
+                                   'Exception occurred in performing PCA. Exception message:  ' + str(e))
+            raise Exception()
 
 if __name__ == '__main__':
     log = logger.App_Logger()
     df = pd.read_csv('train.csv')
     file = open('log.txt', "a")
-    print(df.shape)
-    print(df.isna().sum())
-    final = DataPreprocessor(file, logger.App_Logger()).impute_missing_values('123', True, 'is_promoted', 'fixed', 5000,
-                                                                              {'recruitment_channel': 'other'})
+    print(df.dtypes)
+    # Test your code by calling methods here.
 
-    print(final.head())
-    print(final.isna().sum())
-    print(final.shape)
+
