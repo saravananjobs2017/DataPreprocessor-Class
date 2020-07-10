@@ -184,7 +184,7 @@ class DataPreprocessor:
                                    "svd_solver": ['auto', 'full', 'arpack', 'randomized']}
 
             # Creating an object of the Grid Search class
-            grid = GridSearchCV(estimator=PCA, param_grid=parameter_grid, cv=3, verbose=3)
+            grid = GridSearchCV(estimator=pca, param_grid=parameter_grid, cv=3, verbose=3)
 
             # Finding Best parameters
             grid.fit(data)
