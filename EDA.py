@@ -5,6 +5,8 @@ from sklearn.decomposition import PCA
 from imblearn.over_sampling import RandomOverSampler, SMOTE
 from imblearn.under_sampling import RandomUnderSampler
 from sklearn.feature_selection import VarianceThreshold
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
 
 class DataPreprocessor:
     """
@@ -162,33 +164,59 @@ class DataPreprocessor:
 
         On Failure : Raise Exception
 
-        Written by : Saravanan Dhanapal
+        Written by : iNeuron Intelligence
 
         version    : 1.0
 
-        revisions  : Yet be finialized.
+        revisions  : None.
 
 
         """
 
         self.data = data
         self.var_explained = var_explained
+        pca = PCA()
+        self.logger_object.log(self.file_object, 'S::Entered the PCA method of the DataPreprocessor class')
         try:
-            ## fit the model on the whole dataset
-            # Transform the data
-            # PCA fit generate dafult components as 0.9
-            # Here,scaled_data which pass after perfromed StandardScaler
-            pca1 = PCA(n_components=var_explained)
-            X_pca = pca1.fit(data)
 
-            # Transform the data
-            X_pca1 = X_pca.transform(data)
+            # initializing with different combination of parameters
+            self.parameter_grid = {"n_components": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+                                   "svd_solver": ['auto', 'full', 'arpack', 'randomized']}
 
-            return X_pca1
+            # Creating an object of the Grid Search class
+            grid = GridSearchCV(estimator=PCA, param_grid=parameter_grid, cv=3, verbose=3)
+
+            # Finding Best parameters
+            grid.fit(data)
+
+            # extracting the best parameters
+            self.n_components = grid.best_params_['n_components']
+            self.svd_solver = grid.best_params_['svd_solver']
+
+            # creating pca dataset with the best parameters
+            pca = PCA(n_components=self.n_components, svd_solver=self.svd_solver)
+            # applying PCA model
+            pca.fit(data)
+            Exp_var = var_explained * 10  ##pca.explained_variance_ratio_#default=0.90
+            self.logger_object.log(self.file_object, 'I : PCA best params: ' + str(
+                self.grid.best_params_))
+
+            x_pca = pca.transform(data)
+            # Make Dataframe with pca data
+            columns = ['PC' + str(i) for i in range(1, Exp_var + 1)]
+            pca_data = pd.DataFrame(data=x_pca, columns=columns)
+
+            self.logger_object.log(self.file_object, "C:: the PCA method of the DataPreprocessor class')
+            return pca_data
+
 
         except Exception as e:
             self.logger_object.log(self.file_object,
-                                   'Exception occurred in performing PCA. Exception message:  ' + str(e))
+                                   'E : Exception occured in PCA method of the Data Preprocessor class. Exception message:  ' + str(
+                                       e))
+            self.logger_object.log(self.file_object,
+                                   'E : Unsuccessful. Exited the PCA method of the DataPreprocessor class')
+
             raise Exception()
 
     def remove_imbalance(self, data, target, threshold=10.0, oversample=True, smote=False):
@@ -305,6 +333,56 @@ class DataPreprocessor:
                                    'Exception occured in remove_columns_with_minimal_variance method of the DataPreprocessor class. Exception message: ' + str(
                                        e))  # Logging the exception message
             raise Exception()  # raising exception and exiting
+
+    def standardize_data(self, dataframe):
+
+        """
+        Method Name: standardize_data
+        Description: This method will be used to standardize al the numeric variables. Where mean = 0, std dev = 1.
+        Input Description: data: the input dataframe with numeric columns.
+
+        Output: Standardized data where mean of each column will be 0 and standard deviation will be 1.
+        On Failure: Raise Exception
+
+        Written By: iNeuron Intelligence
+        Version: 1.0
+        Revisions: None
+
+        """
+        try:
+            data = dataframe
+            stdscalar = StandardScaler()
+            scaled_data = stdscalar.fit_transform(data)
+            return scaled_data
+        except Exception as e:
+            self.logger_object.log(self.file_object,
+                                   'Exception occured while stadardizing data. Exception message:  ' + str(e))
+            raise Exception()
+
+    def normalize_data(self, dataframe):
+
+        """
+        Method Name: normalize_data
+        Description: This method will be used to normalize all the numeric variables. Where min value = 0 and max value = 1.
+        Input Description: data: the input dataframe with numeric columns.
+
+        Output: Normalized data where minimum value of each column will be 0 and maximum value of each column will be 1.
+        On Failure: Raise Exception
+
+        Written By: iNeuron Intelligence
+        Version: 1.0
+        Revisions: None
+
+        """
+        try:
+            data = dataframe
+            normalizer = MinMaxScaler()
+            normalized_data = normalizer.fit_transform(data)
+            return normalized_data
+        except Exception as e:
+            self.logger_object.log(self.file_object,
+                                   'Exception occured while stadardizing data. Exception message:  ' + str(e))
+            raise Exception()
 
 if __name__ == '__main__':
     log = logger.App_Logger()
